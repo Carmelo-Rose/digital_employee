@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电商运营数字员工 Demo</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Markdown 渲染（CDN，加载失败则回退纯文本展示） -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🤖 电商运营数字员工 Demo</h1>
+    <p class="sub">上传订单表后，系统会自动识别异常、生成运营日报，并在人工确认后推送到企业微信。</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>① 上传订单文件</h2>
+      <div class="upload-row">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+        <button id="uploadBtn">上传</button>
+      </div>
+      <div id="uploadInfo" class="info"></div>
+    </section>
+
+    <section class="card">
+      <h2>② 开始分析</h2>
+      <div class="options">
+        <label><input type="checkbox" id="useLlm" checked /> 使用 AI 日报（7 板块，调 LLM）</label>
+        <label><input type="checkbox" id="forceMock" /> 强制 mock（不调真实模型）</label>
+      </div>
+      <button id="analyzeBtn" disabled>开始分析</button>
+      <span id="analyzeStatus" class="status"></span>
+    </section>
+
+    <section class="card" id="stepsCard" hidden>
+      <h2>③ 数字员工执行过程 <span class="badge">LangGraph 编排</span></h2>
+      <ol id="steps" class="steps"></ol>
+    </section>
+
+    <section class="card" id="resultCard" hidden>
+      <div class="result-head">
+        <h2>④ AI 运营日报预览</h2>
+        <div class="report-tools">
+          <button id="copyBtn" class="ghost">📋 复制报告</button>
+          <button id="downloadBtn" class="ghost">⬇️ 下载 Markdown</button>
+        </div>
+      </div>
+      <div id="summary" class="summary"></div>
+      <article id="report" class="report"></article>
+      <div class="confirm-bar">
+        <span class="confirm-hint">🧑‍💼 人工确认节点：请先核对上方日报，确认无误后再推送。</span>
+        <button id="pushBtn">✅ 确认并推送到企业微信</button>
+        <span id="pushStatus" class="status"></span>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
