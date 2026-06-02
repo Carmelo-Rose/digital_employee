@@ -114,6 +114,7 @@ def start_workflow(
     use_llm: bool = True,
     force_mock: bool = False,
     send_wecom: bool = True,
+    domain_name: str = "ecommerce",
     thread_id: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """启动分析工作流，图在 human_review interrupt 处阻断。
@@ -131,6 +132,7 @@ def start_workflow(
         "use_llm": use_llm,
         "force_mock": force_mock,
         "send_wecom": send_wecom,
+        "domain_name": domain_name,
         "steps": [],
         "errors": [],
     }

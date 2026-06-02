@@ -1,6 +1,8 @@
-"""核心：订单异常检测。
+"""订单异常检测（兼容层）。
 
-设计为纯函数、无 IO，便于以后被 AI_Agent_claude 的 Agent 直接 import 当 tool 调用。
+业务逻辑已迁移至 app/domains/ecommerce.py（EcommerceDomain.run_checks）。
+工作流节点不再直接调用本模块；保留供 run_stage3.py 等外部脚本使用。
+设计为纯函数、无 IO，便于直接 import 当 tool 调用。
 输入规整后的 DataFrame（canonical 列名），输出结构化字典。
 """
 from __future__ import annotations

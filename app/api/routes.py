@@ -43,9 +43,9 @@ from ..memory import (
     set_field_override,
     set_thresholds,
 )
+from ..domains import get_domain
 from ..push import push_report
 from ..scheduler import get_scheduler_status, trigger_now
-from ..schema import CANONICAL_LABELS, resolve_columns
 
 router = APIRouter(prefix="/api")
 
@@ -71,8 +71,23 @@ async def upload(file: UploadFile = File(...)) -> dict:
         dest.unlink(missing_ok=True)
         raise HTTPException(400, f"文件解析失败：{e}") from e
 
+    # 上传阶段用默认域做列预览；分析阶段会由 domain_name 参数精确识别
     # 叠加用户记忆的字段映射纠正，让预览即体现「上次教过的列」
-    resolved = resolve_columns(df, get_field_overrides())
+    domain = get_domain()
+    overrides = get_field_overrides()
+    aliases = domain.column_aliases
+    col_lookup = {str(c).strip().lower(): str(c) for c in df.columns}
+    resolved: dict[str, str] = {}
+    for canonical, alias_list in aliases.items():
+        for alias in alias_list:
+            if alias.lower() in col_lookup:
+                resolved[canonical] = col_lookup[alias.lower()]
+                break
+    if overrides:
+        for raw_lower, canonical in overrides.items():
+            if canonical and raw_lower in col_lookup:
+                resolved[canonical] = col_lookup[raw_lower]
+
     preview = df.head(5).fillna("").astype(str).to_dict(orient="records")
     return {
         "file_id": file_id,
@@ -99,6 +114,7 @@ class AnalyzeReq(BaseModel):
     use_llm: bool = False
     force_mock: bool = False
     send_wecom: bool = True
+    domain_name: str = "ecommerce"  # 业务域标识，扩展新业务时由前端/调用方传入
 
 
 @router.post("/analyze")
@@ -306,7 +322,7 @@ async def scheduler_status() -> dict:
 
 @router.post("/scheduler/run-now")
 async def scheduler_run_now() -> dict:
-    """手动立即触发一次完整工作流（演示用，不必等 cron 到点）。
+    """手动立即触发一次完整工作流（不必等 cron 到点）。
 
     走与定时任务完全相同的链路：取数据 → 跑图 → 落库 →
     （auto-approve 直接推送 / require_review 推待确认通知）。
@@ -374,7 +390,7 @@ async def get_memory() -> dict:
         "field_overrides": get_field_overrides(),
         "thresholds": get_thresholds(),
         "available_fields": [
-            {"canonical": k, "label": v} for k, v in CANONICAL_LABELS.items()
+            {"canonical": k, "label": v} for k, v in get_domain().canonical_labels.items()
         ],
         "threshold_defs": [
             {"key": k, "label": _THRESHOLD_LABELS.get(k, k)} for k in THRESHOLD_KEYS

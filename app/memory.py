@@ -4,7 +4,7 @@
 阈值定得不合用时，用户纠正一次后，下一次分析应当自动沿用，而不是每次从零开始。
 这正是这个项目最有价值的「记忆」——业务规则记忆，而非闲聊记忆。
 
-存储（demo 级，单文件 JSON，无并发锁；多进程可换 SQLite/Redis）：
+存储（单文件 JSON，无并发锁；多进程可换 SQLite/Redis）：
   data/memory/business_memory.json
     field_overrides: {原始列名(小写去空白): canonical 字段}  用户手工纠正的字段映射
     thresholds:      {阈值名: 数值}                         用户调整的规则阈值

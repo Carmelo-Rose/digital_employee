@@ -17,6 +17,7 @@ class AgentState(TypedDict, total=False):
     use_llm: bool
     force_mock: bool
     send_wecom: bool
+    domain_name: str        # 业务域标识，默认 "ecommerce"；节点通过 get_domain() 获取实现
 
     # FileParseNode
     raw_columns: list[str]

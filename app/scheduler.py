@@ -67,7 +67,7 @@ def resolve_order_file() -> Path | None:
 def run_scheduled_analysis(*, manual: bool = False) -> dict[str, Any]:
     """定时任务主体：取数据 → 跑图 → 落库 → 推送 / 待确认。
 
-    manual=True 表示来自 /api/scheduler/run-now 的手动触发（演示用，不等 cron）。
+    manual=True 表示来自 /api/scheduler/run-now 的手动触发（不等 cron）。
     结果摘要会记录到 _last_run，供 /api/scheduler 观测。
     """
     global _last_run
@@ -219,7 +219,7 @@ def shutdown_scheduler() -> None:
 # ── 观测 / 手动触发 ───────────────────────────────────────────────────────────
 
 def trigger_now() -> dict[str, Any]:
-    """手动立即跑一次（演示用，不必等 cron 到点）。无论 enabled 与否都可调。"""
+    """手动立即跑一次（不必等 cron 到点）。无论 enabled 与否都可调。"""
     return run_scheduled_analysis(manual=True)
 
 

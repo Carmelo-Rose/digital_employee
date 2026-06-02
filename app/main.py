@@ -13,7 +13,7 @@ from .config import STATIC_DIR
 from .db import init_db
 from .scheduler import shutdown_scheduler, start_scheduler
 
-app = FastAPI(title="电商运营数字员工 Demo", version="0.1.0")
+app = FastAPI(title="电商运营数字员工", version="0.1.0")
 app.include_router(api_router)
 
 

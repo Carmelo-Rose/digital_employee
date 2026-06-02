@@ -1,5 +1,7 @@
-"""订单数据列定义与容错映射。
+"""订单数据列定义与容错映射（兼容层）。
 
+业务逻辑已迁移至 app/domains/ecommerce.py（EcommerceDomain）。
+本文件保留供外部脚本（run_stage3.py 等）直接调用，不在工作流节点中使用。
 真实导出文件的表头千差万别（淘宝/抖店/拼多多/英文系统），
 这里用「canonical 字段 → 中文默认表头 + 别名集合」做识别，
 analyzer 只认 canonical 名，从而与具体平台解耦。

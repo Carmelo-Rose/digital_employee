@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """第三阶段命令行入口：订单文件 → 规则分析 → （可选）AI 日报 → （可选）推送企微。
 
-示例：
+用法：
     # 规则版日报
     python run_stage3.py --input data/sample_orders.xlsx --output reports/report.md
 

@@ -1,15 +1,10 @@
-"""LLM 运营日报生成模块（第三阶段）。
+"""LLM 运营日报生成模块（兼容层）。
 
-把 analyzer.py 的结构化规则结果，写成一份「像运营人员写的」AI 数字员工日报，
-固定 7 个板块：今日订单概况 / 重点异常问题 / 需要优先处理的订单 /
-商品·库存风险 / 客服备注风险 / AI 运营建议 / 明日关注事项。
+日报生成逻辑已迁移至 app/domains/ecommerce.py（EcommerceDomain.build_mock_report /
+get_system_prompt）以及 app/nodes/report_generation_node.py（_generate_report）。
+工作流节点不再直接调用本模块；保留供 run_stage3.py 等外部脚本使用。
 
-不重复造轮子（与现有模块的分工）：
-- 规则分析仍由 analyzer.py 负责，本模块只把数据「写成话」。
-- mock / 真实 API / provider 选择 / env Key / MiMo 端点 全部复用 app/llm.py
-  与 app/config.py，本模块不重复实现密钥管理与 HTTP 调用。
-- mock 模式（默认、不依赖真实 API）由本模块的 _mock_report 确定性渲染；
-  真实模式调用 llm.get_llm_client().complete(...)，失败自动回退 mock。
+原有 generate_ai_report() 接口不变，可继续从外部调用。
 """
 from __future__ import annotations
 

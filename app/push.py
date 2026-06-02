@@ -1,7 +1,7 @@
 """统一推送接口：企微群机器人（markdown_v2）+ 飞书自定义机器人（interactive card）。
 
 两种渠道均从 analysis_result dict 构建结构化卡片，不再依赖纯文本 Markdown。
-未配置对应 URL 时返回 mock 成功，保证 Demo 不接任何真实凭证也能演示。
+未配置对应 URL 时返回 mock 成功，允许无凭证运行。
 """
 from __future__ import annotations
 
