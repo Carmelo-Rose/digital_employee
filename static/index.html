@@ -16,19 +16,25 @@
 
   <main>
     <section class="card">
-      <h2>① 上传订单文件</h2>
+      <h2>① 上传业务数据文件</h2>
       <div class="upload-row">
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
         <button id="uploadBtn">上传</button>
       </div>
       <div id="uploadInfo" class="info"></div>
+      <!-- 业务域选择（上传后显示，自动推断 + 手动切换） -->
+      <div id="domainBox" class="domain-box" hidden>
+        <span class="domain-label">业务域：</span>
+        <select id="domainSelect"></select>
+        <span id="domainInferBadge" class="infer-badge"></span>
+      </div>
       <div id="teachBox" class="teach-box" hidden></div>
     </section>
 
     <section class="card">
       <h2>② 开始分析</h2>
       <div class="options">
-        <label><input type="checkbox" id="useLlm" checked /> 使用 AI 日报（7 板块，调 LLM）</label>
+        <label><input type="checkbox" id="useLlm" checked /> 使用 AI 日报（调 LLM）</label>
         <label><input type="checkbox" id="forceMock" /> 强制 mock（不调真实模型）</label>
       </div>
       <button id="analyzeBtn" disabled>开始分析</button>

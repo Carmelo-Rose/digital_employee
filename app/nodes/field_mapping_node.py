@@ -36,18 +36,55 @@ def field_mapping_node(state: AgentState) -> dict[str, Any]:
     cols = state.get("raw_columns")
     if not cols:  # 上游解析失败，跳过
         return {}
-    domain = get_domain(state.get("domain_name"))
-    overrides = get_field_overrides()                              # 用户记忆的字段映射纠正
-    resolved = _resolve_column_names(cols, domain.column_aliases, overrides)
+    domain_name = state.get("domain_name") or "ecommerce"
+    domain = get_domain(domain_name)
+
+    # 先用 LLM/关键词推断（含 domain 隔离记忆覆盖）
+    from ..field_infer import infer_fields
+    from ..llm import get_llm_client
+    from ..memory import get_field_overrides
+
+    sample_rows = state.get("preview_rows") or []
+    try:
+        llm = get_llm_client()
+        infer_result = infer_fields(cols, sample_rows[:3], llm_client=llm)
+    except Exception:  # noqa: BLE001
+        infer_result = infer_fields(cols, sample_rows[:3], llm_client=None)
+
+    col_mapping: dict[str, str | None] = infer_result["column_mapping"]
+    infer_method: str = infer_result["method"]
+    # 用推断结果更新域（infer_fields 可能把 ecommerce/hr 纠正为 general）
+    domain_name = infer_result.get("domain_name", domain_name)
+
+    # 叠加用户记忆（最高优先级）
+    overrides = get_field_overrides(domain_name)
+    col_lookup = {str(c).strip().lower(): str(c) for c in cols}
+    for raw_lower, canonical in overrides.items():
+        if canonical and raw_lower in col_lookup:
+            orig = col_lookup[raw_lower]
+            col_mapping[orig] = canonical
+
+    # 转为 {canonical: 原始列名}
+    resolved: dict[str, str] = {v: k for k, v in col_mapping.items() if v}
     recognized = list(resolved.keys())
     used = set(resolved.values())
     unrecognized = [c for c in cols if c not in used]
-    # 命中记忆的列单独点出来，让用户看到「上次纠正生效了」
+
     hit = sum(1 for raw in cols if str(raw).strip().lower() in (overrides or {}))
-    detail = f"识别 {len(recognized)} 个标准字段，未识别 {len(unrecognized)} 个字段"
+    if domain_name == "general":
+        detail = (
+            f"未匹配已知业务域，切换为通用数据质量分析"
+            f"（共 {len(cols)} 列，推断方式：{infer_method}）"
+        )
+    else:
+        detail = (
+            f"识别 {len(recognized)} 个标准字段，未识别 {len(unrecognized)} 个字段"
+            f"（推断方式：{infer_method}）"
+        )
     if hit:
         detail += f"（含 {hit} 个来自记忆的映射纠正）"
     return {
+        "domain_name": domain_name,
         "mapped_columns": resolved,
         "recognized_fields": recognized,
         "unrecognized_fields": unrecognized,

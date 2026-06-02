@@ -36,6 +36,29 @@ async function postJSON(url, body) {
   return resp.json();
 }
 
+// 当前选中的业务域
+let currentDomain = "ecommerce";
+
+// 渲染业务域选择器
+function renderDomainBox(data) {
+  const box = $("domainBox");
+  const sel = $("domainSelect");
+  const badge = $("domainInferBadge");
+  const domains = data.available_domains || { ecommerce: "电商运营" };
+  sel.innerHTML = Object.entries(domains)
+    .map(([k, v]) => `<option value="${k}">${v}</option>`)
+    .join("");
+  currentDomain = data.inferred_domain || "ecommerce";
+  sel.value = currentDomain;
+  badge.textContent = data.infer_method === "llm" ? "🤖 AI 推断" : "🔤 关键词推断";
+  box.hidden = false;
+  sel.onchange = () => {
+    currentDomain = sel.value;
+    loadMemory(currentDomain);   // 切换 domain 后刷新字段下拉
+    renderTeachUI();
+  };
+}
+
 // ① 上传
 $("uploadBtn").onclick = async () => {
   const f = $("fileInput").files[0];
@@ -56,8 +79,11 @@ $("uploadBtn").onclick = async () => {
       `识别到 ${cols.length} 个标准字段：${cols.join("、") || "无"}` +
       (data.unrecognized_columns.length
         ? `<br>未识别列：${data.unrecognized_columns.join("、")}` : "");
-    // 把未识别列交给「教学」UI：可一键教数字员工记住映射
+    // 业务域选择器
+    renderDomainBox(data);
+    // 刷新 memory（带新 domain），等字段列表拿回来再渲染教学 UI
     lastUnrecognized = data.unrecognized_columns || [];
+    await loadMemory(currentDomain);
     renderTeachUI();
     $("analyzeBtn").disabled = false;
     toast("上传成功，可以开始分析");
@@ -133,6 +159,7 @@ $("analyzeBtn").onclick = async () => {
   try {
     const data = await postJSON("/api/analyze", {
       file_id: fileId, file_name: fileName, use_llm: useLlm, force_mock: forceMock,
+      domain_name: currentDomain,
     });
     reportMarkdown = data.report_markdown || "";
     currentReportId = data.report_id || null;
@@ -526,9 +553,10 @@ function fieldOptions(selected) {
   return opts.join("");
 }
 
-async function loadMemory() {
+async function loadMemory(domain) {
+  const q = (domain || currentDomain) ? `?domain=${encodeURIComponent(domain || currentDomain)}` : "";
   try {
-    const resp = await fetch("/api/memory");
+    const resp = await fetch(`/api/memory${q}`);
     if (!resp.ok) throw new Error("请求失败");
     memoryState = await resp.json();
     renderThresholdForm();
@@ -570,7 +598,9 @@ function renderOverrideList() {
 
 async function saveFieldOverride(rawColumn, canonical) {
   try {
-    const r = await postJSON("/api/memory/field-override", { raw_column: rawColumn, canonical });
+    const r = await postJSON("/api/memory/field-override", {
+      raw_column: rawColumn, canonical, domain_name: currentDomain || null,
+    });
     memoryState.field_overrides = r.field_overrides;
     renderOverrideList();
     renderTeachUI();   // 同步刷新上传区的「未识别列」教学块

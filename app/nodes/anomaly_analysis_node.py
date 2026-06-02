@@ -50,18 +50,24 @@ def anomaly_analysis_node(state: AgentState) -> dict[str, Any]:
     if not records:  # 上游失败，跳过
         return {}
     try:
-        domain = get_domain(state.get("domain_name"))
+        domain_name = state.get("domain_name") or "ecommerce"
+        domain = get_domain(domain_name)
         cfg = effective_config()
         overrides = get_field_overrides()
 
         raw_df = pd.DataFrame(records)
-        ndf = _normalize_df(
-            raw_df,
-            domain.column_aliases,
-            domain.time_columns,
-            domain.numeric_columns,
-            overrides,
-        )
+
+        # 通用域不做列名规整，直接用原始列名
+        if domain_name == "general" or not domain.column_aliases:
+            ndf = raw_df.copy()
+        else:
+            ndf = _normalize_df(
+                raw_df,
+                domain.column_aliases,
+                domain.time_columns,
+                domain.numeric_columns,
+                overrides,
+            )
 
         results = domain.run_checks(ndf, cfg)
         now = datetime.now()

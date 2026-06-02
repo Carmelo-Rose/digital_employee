@@ -9,19 +9,22 @@ from __future__ import annotations
 
 from .base import BusinessDomain, CheckResult, DomainConfig
 from .ecommerce import EcommerceDomain
+from .general import GeneralDomain
+from .hr import HRDomain
 
 __all__ = ["BusinessDomain", "CheckResult", "DomainConfig", "DOMAIN_REGISTRY", "get_domain"]
 
 DOMAIN_REGISTRY: dict[str, type[BusinessDomain]] = {
     "ecommerce": EcommerceDomain,
+    "hr": HRDomain,
+    "general": GeneralDomain,
 }
 
 
 def get_domain(name: str | None = None) -> BusinessDomain:
-    """工厂函数：按名称返回业务域实例。name 为 None 时返回默认域（ecommerce）。"""
+    """工厂函数：按名称返回业务域实例。name 为 None 或未知时返回通用域。"""
     key = (name or "ecommerce").lower().strip()
     cls = DOMAIN_REGISTRY.get(key)
     if cls is None:
-        available = list(DOMAIN_REGISTRY.keys())
-        raise ValueError(f"未知业务域: {key!r}，可选: {available}")
+        return GeneralDomain()
     return cls()

@@ -1,4 +1,7 @@
 {
   "field_overrides": {},
+  "domain_field_overrides": {
+    "hr": {}
+  },
   "thresholds": {}
 }

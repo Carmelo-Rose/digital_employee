@@ -43,7 +43,9 @@ from ..memory import (
     set_field_override,
     set_thresholds,
 )
-from ..domains import get_domain
+from ..domains import DOMAIN_REGISTRY, get_domain
+from ..field_infer import infer_fields
+from ..llm import get_llm_client
 from ..push import push_report
 from ..scheduler import get_scheduler_status, trigger_now
 
@@ -71,30 +73,41 @@ async def upload(file: UploadFile = File(...)) -> dict:
         dest.unlink(missing_ok=True)
         raise HTTPException(400, f"文件解析失败：{e}") from e
 
-    # 上传阶段用默认域做列预览；分析阶段会由 domain_name 参数精确识别
-    # 叠加用户记忆的字段映射纠正，让预览即体现「上次教过的列」
-    domain = get_domain()
-    overrides = get_field_overrides()
-    aliases = domain.column_aliases
-    col_lookup = {str(c).strip().lower(): str(c) for c in df.columns}
-    resolved: dict[str, str] = {}
-    for canonical, alias_list in aliases.items():
-        for alias in alias_list:
-            if alias.lower() in col_lookup:
-                resolved[canonical] = col_lookup[alias.lower()]
-                break
-    if overrides:
-        for raw_lower, canonical in overrides.items():
-            if canonical and raw_lower in col_lookup:
-                resolved[canonical] = col_lookup[raw_lower]
+    columns = [str(c) for c in df.columns]
+    sample_rows = df.head(3).fillna("").astype(str).to_dict(orient="records")
+
+    # LLM / 关键词推断业务域 + 字段映射
+    try:
+        llm = get_llm_client()
+        infer_result = infer_fields(columns, sample_rows, llm_client=llm)
+    except Exception:  # noqa: BLE001
+        infer_result = infer_fields(columns, sample_rows, llm_client=None)
+
+    domain_name: str = infer_result["domain_name"]
+    infer_method: str = infer_result["method"]
+    col_mapping: dict[str, str | None] = infer_result["column_mapping"]
+
+    # 叠加用户记忆（domain 隔离，覆盖 LLM 推断）
+    overrides = get_field_overrides(domain_name)
+    col_lookup = {str(c).strip().lower(): str(c) for c in columns}
+    for raw_lower, canonical in overrides.items():
+        if canonical and raw_lower in col_lookup:
+            orig = col_lookup[raw_lower]
+            col_mapping[orig] = canonical
+
+    # 整理成 {canonical: 原始列名}
+    resolved: dict[str, str] = {v: k for k, v in col_mapping.items() if v}
 
     preview = df.head(5).fillna("").astype(str).to_dict(orient="records")
     return {
         "file_id": file_id,
         "filename": file.filename,
         "rows": int(len(df)),
+        "inferred_domain": domain_name,
+        "infer_method": infer_method,
+        "available_domains": {k: get_domain(k).name for k in DOMAIN_REGISTRY},
         "recognized_columns": resolved,
-        "unrecognized_columns": [str(c) for c in df.columns if c not in resolved.values()],
+        "unrecognized_columns": [c for c in columns if col_mapping.get(c) is None],
         "preview": preview,
     }
 
@@ -136,6 +149,7 @@ async def analyze(req: AnalyzeReq) -> dict:
         use_llm=req.use_llm,
         force_mock=req.force_mock,
         send_wecom=req.send_wecom,
+        domain_name=req.domain_name,
     )
 
     analysis = state.get("analysis_result") or {}
@@ -384,13 +398,22 @@ _THRESHOLD_LABELS = {
 
 
 @router.get("/memory")
-async def get_memory() -> dict:
-    """返回当前记忆：字段映射纠正 + 阈值，并附可选 canonical 字段清单供前端下拉。"""
+async def get_memory(domain: str | None = None) -> dict:
+    """返回当前记忆：字段映射纠正 + 阈值，并附可选 canonical 字段清单供前端下拉。
+
+    ?domain=hr  → 返回 HR 域的字段列表 + 该域的 field_overrides
+    未传         → 默认 ecommerce
+    """
+    domain_name = domain or "ecommerce"
+    try:
+        d = get_domain(domain_name)
+    except Exception:
+        d = get_domain("ecommerce")
     return {
-        "field_overrides": get_field_overrides(),
+        "field_overrides": get_field_overrides(domain_name),
         "thresholds": get_thresholds(),
         "available_fields": [
-            {"canonical": k, "label": v} for k, v in get_domain().canonical_labels.items()
+            {"canonical": k, "label": v} for k, v in d.canonical_labels.items()
         ],
         "threshold_defs": [
             {"key": k, "label": _THRESHOLD_LABELS.get(k, k)} for k in THRESHOLD_KEYS
@@ -401,13 +424,14 @@ async def get_memory() -> dict:
 class FieldOverrideReq(BaseModel):
     raw_column: str
     canonical: str | None = None   # 留空 → 删除该条记忆
+    domain_name: str | None = None  # 指定域（不填则写全局）
 
 
 @router.post("/memory/field-override")
 async def post_field_override(req: FieldOverrideReq) -> dict:
     """记住一条字段映射纠正（下次上传同名列即自动识别）。"""
     try:
-        overrides = set_field_override(req.raw_column, req.canonical)
+        overrides = set_field_override(req.raw_column, req.canonical, req.domain_name)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     return {"ok": True, "field_overrides": overrides}

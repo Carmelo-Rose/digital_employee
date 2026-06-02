@@ -34,10 +34,10 @@ THRESHOLD_KEYS: tuple[str, ...] = (
     "stock_low_threshold",
 )
 
-# 合法的 canonical 字段集合（字段映射 override 的值必须在其中）
+# 合法的 canonical 字段集合（ecommerce 默认域，兼容旧接口）
 VALID_CANONICALS: frozenset[str] = frozenset(COLUMN_ALIASES)
 
-_EMPTY: dict[str, Any] = {"field_overrides": {}, "thresholds": {}}
+_EMPTY: dict[str, Any] = {"field_overrides": {}, "domain_field_overrides": {}, "thresholds": {}}
 
 
 def _norm_col(raw: str) -> str:
@@ -50,13 +50,14 @@ def _norm_col(raw: str) -> str:
 def load_memory() -> dict[str, Any]:
     """读取记忆文件，缺失/损坏时返回空结构（不抛异常）。"""
     if not _MEMORY_FILE.exists():
-        return {"field_overrides": {}, "thresholds": {}}
+        return {"field_overrides": {}, "domain_field_overrides": {}, "thresholds": {}}
     try:
         data = json.loads(_MEMORY_FILE.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return {"field_overrides": {}, "thresholds": {}}
+        return {"field_overrides": {}, "domain_field_overrides": {}, "thresholds": {}}
     return {
         "field_overrides": dict(data.get("field_overrides") or {}),
+        "domain_field_overrides": dict(data.get("domain_field_overrides") or {}),
         "thresholds": dict(data.get("thresholds") or {}),
     }
 
@@ -71,30 +72,61 @@ def _save_memory(mem: dict[str, Any]) -> None:
 
 # ── 字段映射 override ─────────────────────────────────────────────────────────
 
-def get_field_overrides() -> dict[str, str]:
-    """{原始列名(小写): canonical}，供 schema.resolve_* 作为最高优先级映射。"""
-    return load_memory()["field_overrides"]
+def get_field_overrides(domain_name: str | None = None) -> dict[str, str]:
+    """{原始列名(小写): canonical}，供 schema.resolve_* 作为最高优先级映射。
+
+    domain_name 不为空时，先取 domain 专属记忆，再叠加全局记忆（domain 优先）。
+    """
+    mem = load_memory()
+    merged = dict(mem["field_overrides"])
+    if domain_name:
+        domain_overrides = mem["domain_field_overrides"].get(domain_name.lower(), {})
+        merged.update(domain_overrides)
+    return merged
 
 
-def set_field_override(raw_column: str, canonical: str | None) -> dict[str, str]:
+def set_field_override(
+    raw_column: str,
+    canonical: str | None,
+    domain_name: str | None = None,
+) -> dict[str, str]:
     """记住/更新一条字段映射纠正。canonical 为空 → 删除该条记忆。
 
-    canonical 非空时必须是合法 canonical 字段，否则 ValueError。
-    返回更新后的全部 field_overrides。
+    domain_name 不为空时，记忆存入对应 domain 的隔离空间，不污染其他域。
+    返回更新后的（含合并的）全部 field_overrides。
     """
+    from .domains import DOMAIN_REGISTRY, get_domain
     key = _norm_col(raw_column)
     if not key:
         raise ValueError("原始列名不能为空")
     mem = load_memory()
-    overrides = mem["field_overrides"]
-    if not canonical:
-        overrides.pop(key, None)
+
+    # 按 domain 校验 canonical 合法性
+    if canonical:
+        if domain_name and domain_name.lower() in DOMAIN_REGISTRY:
+            valid = frozenset(get_domain(domain_name).column_aliases.keys())
+        else:
+            valid = VALID_CANONICALS
+        if canonical not in valid:
+            raise ValueError(f"未知 canonical 字段：{canonical}（域：{domain_name or 'ecommerce'}）")
+
+    if domain_name:
+        dkey = domain_name.lower()
+        domain_map = mem.setdefault("domain_field_overrides", {})
+        bucket = domain_map.setdefault(dkey, {})
+        if not canonical:
+            bucket.pop(key, None)
+        else:
+            bucket[key] = canonical
     else:
-        if canonical not in VALID_CANONICALS:
-            raise ValueError(f"未知 canonical 字段：{canonical}")
-        overrides[key] = canonical
+        overrides = mem["field_overrides"]
+        if not canonical:
+            overrides.pop(key, None)
+        else:
+            overrides[key] = canonical
+
     _save_memory(mem)
-    return overrides
+    return get_field_overrides(domain_name)
 
 
 # ── 阈值持久化 ────────────────────────────────────────────────────────────────

@@ -121,7 +121,7 @@ def report_generation_node(state: AgentState) -> dict[str, Any]:
             # 电商域 fallback 到 build_report() 维持规则版格式，其他域用 build_mock_report
             from ..domains import get_domain as _gd
             _domain = _gd(state.get("domain_name"))
-            if state.get("domain_name", "ecommerce") == "ecommerce":
+            if state.get("domain_name") == "ecommerce":
                 md, mode = build_report(analysis), "rule"
             else:
                 md, mode = _domain.build_mock_report(analysis), "mock"

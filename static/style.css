@@ -242,6 +242,20 @@ button.ghost:hover:not(:disabled) { background: #f5f3ff; }
 }
 .link-del:hover:not(:disabled) { background: none; color: #7f1d1d; }
 
+/* ── 业务域选择器 ──────────────────────────────────────────────────────── */
+.domain-box {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 8px 12px;
+  background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+  font-size: 13px;
+}
+.domain-label { color: #0369a1; font-weight: 600; }
+.domain-box select { padding: 4px 8px; border-radius: 6px; border: 1px solid #93c5fd; font-size: 13px; }
+.infer-badge {
+  padding: 2px 8px; border-radius: 999px; font-size: 11px;
+  background: #dbeafe; color: #1d4ed8;
+}
+
 /* ── 上传区：教数字员工识别未识别列 ──────────────────────────────────── */
 .teach-box {
   margin-top: 12px; padding: 12px 14px;
