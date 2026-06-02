@@ -7,6 +7,9 @@ python-multipart>=0.0.9      # FastAPI 文件上传依赖
 pandas>=2.2.0
 openpyxl>=3.1.0              # 读 .xlsx/.xls
 
+# 持久化
+sqlalchemy>=2.0.0
+
 # 配置与推送
 python-dotenv>=1.0.1
 httpx>=0.27.0               # 企微/飞书 webhook 推送
@@ -17,6 +20,9 @@ anthropic>=0.40.0
 # Agent 工作流编排（第五阶段）
 langgraph>=1.0.0
 langchain-core>=1.0.0
+
+# 自主触发（定时调度，让数字员工"自己上班"）
+apscheduler>=3.10,<4.0
 
 # 开发/测试
 pytest>=8.0.0

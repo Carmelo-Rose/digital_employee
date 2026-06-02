@@ -10,9 +10,23 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.routes import router as api_router
 from .config import STATIC_DIR
+from .db import init_db
+from .scheduler import shutdown_scheduler, start_scheduler
 
 app = FastAPI(title="电商运营数字员工 Demo", version="0.1.0")
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    init_db()
+    # 自主触发：SCHEDULER_ENABLED=true 时随服务启动定时任务，否则跳过
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    shutdown_scheduler()
 
 # 前端静态资源（js/css）
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

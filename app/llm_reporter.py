@@ -220,29 +220,46 @@ def _mock_report(analysis: dict) -> str:
     return "\n".join(out)
 
 
+def _mock_report_with_feedback(analysis: dict, feedback: str) -> str:
+    """mock 模式下无法真正重写，但显式回显已采纳的人工意见，保证 revise 可见。"""
+    md = _mock_report(analysis)
+    note = f"> 📝 已采纳人工修改意见：{feedback}\n>（mock 模式不调真实模型，正式重写请开启真实 LLM）\n\n"
+    # 插到第一个 ## 板块前，紧跟标题
+    lines = md.split("\n", 2)
+    return (lines[0] + "\n\n" + note + "\n".join(lines[1:])) if len(lines) > 1 else note + md
+
+
 def generate_ai_report(
     analysis: dict,
     cfg: Config | None = None,
     *,
     force_mock: bool = False,
+    feedback: str | None = None,
 ) -> tuple[str, str]:
     """生成 AI 风格运营日报。
 
     返回 (markdown 文本, 实际使用的模式: "llm" | "mock")。
     - force_mock 或 provider 非真实/缺 Key → 走确定性 mock 渲染。
     - 否则调用真实模型（MiMo/Claude），失败自动回退 mock。
+    - feedback：人工 revise 时的修改意见，追加到 prompt 让模型据此重写。
     """
     cfg = cfg or settings
     provider = cfg.llm_provider.lower()
     want_real = (not force_mock) and provider in {"mimo", "claude", "anthropic"} and bool(cfg.llm_api_key)
     if not want_real:
-        return _mock_report(analysis), "mock"
+        return (_mock_report_with_feedback(analysis, feedback) if feedback else _mock_report(analysis)), "mock"
 
     client = get_llm_client(cfg)
     if not (isinstance(client, AnthropicLLM) and client.available):
-        return _mock_report(analysis), "mock"
+        return (_mock_report_with_feedback(analysis, feedback) if feedback else _mock_report(analysis)), "mock"
     try:
-        body = client.complete(_build_prompt(analysis), system=_SYSTEM_PROMPT)
+        prompt = _build_prompt(analysis)
+        if feedback:
+            prompt += (
+                f"\n\n【运营负责人对上一版日报的修改意见】\n{feedback}\n"
+                "请在保持 7 板块结构的前提下，按此意见重写日报。"
+            )
+        body = client.complete(prompt, system=_SYSTEM_PROMPT)
         if not body.strip():
             return _mock_report(analysis), "mock"
         header = f"# 🤖 AI 运营日报 · {analysis['date']}\n\n> 由 {cfg.llm_model} 生成\n"

@@ -22,6 +22,7 @@
         <button id="uploadBtn">上传</button>
       </div>
       <div id="uploadInfo" class="info"></div>
+      <div id="teachBox" class="teach-box" hidden></div>
     </section>
 
     <section class="card">
@@ -48,11 +49,72 @@
         </div>
       </div>
       <div id="summary" class="summary"></div>
+      <!-- 环比面板 -->
+      <div id="comparePanel" class="compare-panel" hidden></div>
       <article id="report" class="report"></article>
+
+      <!-- 编辑模式：直接改写日报后推送 -->
+      <div id="editBox" class="edit-box" hidden>
+        <textarea id="editArea" class="edit-area" spellcheck="false"></textarea>
+        <div class="inline-actions">
+          <button id="editSaveBtn">✅ 保存并推送</button>
+          <button id="editCancelBtn" class="ghost">取消</button>
+        </div>
+      </div>
+
+      <!-- 反馈重写：给 AI 修改意见，重新生成后再次复审 -->
+      <div id="reviseBox" class="revise-box" hidden>
+        <input id="reviseInput" type="text"
+               placeholder="给 AI 的修改意见，例如：物流部分再展开写细一点、语气更简洁" />
+        <div class="inline-actions">
+          <button id="reviseSendBtn">🔁 提交并重写</button>
+          <button id="reviseCancelBtn" class="ghost">取消</button>
+        </div>
+      </div>
+
       <div class="confirm-bar">
-        <span class="confirm-hint">🧑‍💼 人工确认节点：请先核对上方日报，确认无误后再推送。</span>
-        <button id="pushBtn">✅ 确认并推送到企业微信</button>
+        <div class="confirm-hint">
+          <span class="hitl-badge" id="hitlBadge">⏸ 等待人工审核</span>
+          🧑‍💼 人工确认节点：图已在此中断（interrupt），请核对日报后选择操作。
+        </div>
+        <div class="confirm-actions">
+          <button id="pushBtn">✅ 确认推送到企业微信</button>
+          <button id="editBtn" class="ghost">✏️ 编辑后推送</button>
+          <button id="reviseBtn" class="ghost">🔁 反馈重写</button>
+          <button id="rejectBtn" class="btn-reject">🚫 不推送，仅保存</button>
+        </div>
         <span id="pushStatus" class="status"></span>
+      </div>
+    </section>
+
+    <!-- 业务规则记忆：字段映射纠正 + 阈值持久化 -->
+    <section class="card" id="memoryCard">
+      <div class="result-head">
+        <h2>⚙️ 业务规则记忆 <span class="badge">跨任务复用</span></h2>
+        <button id="refreshMemory" class="ghost">刷新</button>
+      </div>
+      <div class="mem-block">
+        <h3>规则阈值（持久化，覆盖默认值）</h3>
+        <div id="thresholdForm" class="threshold-form"></div>
+        <button id="saveThresholds">保存阈值</button>
+        <span id="memStatus" class="status"></span>
+      </div>
+      <div class="mem-block">
+        <h3>已记住的字段映射纠正</h3>
+        <div id="overrideList" class="override-list">
+          <span class="info">暂无。上传文件后，可在「未识别列」处教数字员工识别。</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 历史报告面板 -->
+    <section class="card" id="historyCard">
+      <div class="result-head">
+        <h2>📋 历史报告</h2>
+        <button id="refreshHistory" class="ghost">刷新</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <span class="info">加载中…</span>
       </div>
     </section>
   </main>

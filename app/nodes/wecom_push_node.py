@@ -26,7 +26,8 @@ def wecom_push_node(state: AgentState) -> dict[str, Any]:
         res = {"status": "failed", "message": "日报为空，无法推送"}
         return {"wecom_result": res, "steps": [make_step("企业微信推送", res["message"], status="error")]}
 
-    raw = send_to_wecom(md)  # {ok, mock?, message?, error?, response?}
+    analysis = state.get("analysis_result") or {}
+    raw = send_to_wecom(md, analysis=analysis)  # {ok, mock?, message?, error?, response?}
     if raw.get("ok") and raw.get("mock"):
         status, detail, st = "missing_webhook", raw.get("message", "未配置 webhook，已模拟推送"), "done"
     elif raw.get("ok"):

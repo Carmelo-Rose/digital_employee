@@ -8,6 +8,7 @@ import pandas as pd
 
 from ..agent_state import AgentState
 from ..analyzer import analyze_orders
+from ..memory import effective_config, get_field_overrides
 from ._common import make_step
 
 
@@ -17,7 +18,10 @@ def anomaly_analysis_node(state: AgentState) -> dict[str, Any]:
         return {}
     try:
         df = pd.DataFrame(records)
-        analysis = analyze_orders(df)           # 复用现有规则引擎
+        # 叠加业务规则记忆：字段映射纠正 + 阈值持久化
+        cfg = effective_config()
+        overrides = get_field_overrides()
+        analysis = analyze_orders(df, cfg, field_overrides=overrides)
         detail = (
             f"共 {analysis['total_orders']} 单，"
             f"异常订单 {analysis.get('anomaly_orders', 0)} 单"

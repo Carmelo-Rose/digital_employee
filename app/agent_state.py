@@ -43,6 +43,8 @@ class AgentState(TypedDict, total=False):
     # HumanReviewNode
     need_human_review: bool
     human_approved: bool
+    review_action: str                      # approve / reject / edit / revise / skip
+    review_feedback: str                    # revise 时人工给的修改意见，喂回报告生成
 
     # WecomPushNode
     wecom_result: dict[str, Any]

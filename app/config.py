@@ -29,6 +29,13 @@ def _int_env(key: str, default: int) -> int:
         return default
 
 
+def _bool_env(key: str, default: bool) -> bool:
+    raw = os.getenv(key, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on", "y"}
+
+
 # 客服备注关键词 → 归类标签
 DEFAULT_CS_KEYWORDS: dict[str, str] = {
     "投诉": "投诉",
@@ -66,6 +73,24 @@ class Config:
 
     # 报告中每类异常最多展示多少行明细
     report_max_rows: int = 20
+
+    # ===== 自主触发（APScheduler 定时跑，无需人工上传）=====
+    scheduler_enabled: bool = field(default_factory=lambda: _bool_env("SCHEDULER_ENABLED", False))
+    # 触发节奏：cron 优先（标准 5 段表达式，如 "0 9 * * *" 每天 09:00）；
+    # cron 为空且 interval>0 时按分钟间隔跑；两者都没配则默认每天 09:00。
+    scheduler_cron: str = field(default_factory=lambda: os.getenv("SCHEDULER_CRON", "").strip())
+    scheduler_interval_minutes: int = field(default_factory=lambda: _int_env("SCHEDULER_INTERVAL_MINUTES", 0))
+    scheduler_timezone: str = field(
+        default_factory=lambda: os.getenv("SCHEDULER_TIMEZONE", "Asia/Shanghai").strip() or "Asia/Shanghai"
+    )
+    # 数据源：当前为固定文件路径（留空回退 data/sample_orders.xlsx）。
+    # 以后要扫 inbox 目录 / 接电商平台 API，只改 scheduler.resolve_order_file()，此处不动。
+    scheduler_input_file: str = field(default_factory=lambda: os.getenv("SCHEDULER_INPUT_FILE", "").strip())
+    scheduler_use_llm: bool = field(default_factory=lambda: _bool_env("SCHEDULER_USE_LLM", False))
+    scheduler_send_wecom: bool = field(default_factory=lambda: _bool_env("SCHEDULER_SEND_WECOM", True))
+    # True：自动跑完只推「待确认」通知，留人在系统里确认后再发正式日报（保留 HITL）；
+    # False（默认）：自动批准直接推送，真正无人值守闭环。
+    scheduler_require_review: bool = field(default_factory=lambda: _bool_env("SCHEDULER_REQUIRE_REVIEW", False))
 
 
 # 全局单例（运行期不变）；测试可自行构造 Config(...) 覆盖

@@ -195,11 +195,14 @@ def analyze_orders(
     now: datetime | None = None,
     *,
     already_normalized: bool = False,
+    field_overrides: dict[str, str] | None = None,
 ) -> dict:
     """对订单 DataFrame 做五类异常检测，返回结构化结果。
 
     df: 原始或已规整的订单表。
     already_normalized: True 表示 df 已是 canonical 列名（测试用）。
+    field_overrides: 用户记忆的字段映射纠正（{原始列名小写: canonical}），
+        由调用方从 memory 层读出后传入，保持本模块无 IO。
     """
     cfg = cfg or settings
     now = now or datetime.now()
@@ -207,7 +210,7 @@ def analyze_orders(
     if already_normalized:
         ndf, resolved, missing = df, {c: c for c in df.columns}, []
     else:
-        ndf, resolved, missing = normalize(df)
+        ndf, resolved, missing = normalize(df, field_overrides)
 
     categories: dict[str, list[dict]] = {}
     skipped: list[str] = []        # 人读的「类别：原因」

@@ -22,16 +22,25 @@ def report_generation_node(state: AgentState) -> dict[str, Any]:
             "steps": [make_step("AI 日报生成", "无分析结果，已跳过", status="error")],
         }
     use_llm = state.get("use_llm", True)
+    # revise 回流时带着人工修改意见；用过即清空，避免下一轮误用
+    feedback = state.get("review_feedback") or ""
+    is_revise = state.get("review_action") == "revise" and bool(feedback)
     try:
         if use_llm:
-            md, mode = generate_ai_report(analysis, force_mock=state.get("force_mock", False))
+            md, mode = generate_ai_report(
+                analysis,
+                force_mock=state.get("force_mock", False),
+                feedback=feedback or None,
+            )
         else:
             md, mode = build_report(analysis), "rule"
+        detail = f"{mode} 模式" + ("（按人工意见重写）" if is_revise else "")
         return {
             "report_markdown": md,
             "report_mode": mode,
             "llm_mode": mode,
-            "steps": [make_step("AI 日报生成", f"{mode} 模式")],
+            "review_feedback": "",          # 清空，防止再次 interrupt 后重复套用
+            "steps": [make_step("AI 日报生成", detail)],
         }
     except Exception as e:  # noqa: BLE001
         return {

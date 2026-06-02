@@ -6,15 +6,20 @@
 """
 from __future__ import annotations
 
+from __future__ import annotations
+
+from typing import Any
+
 from .push import push_report
 
 
-def send_to_wecom(markdown: str) -> dict:
-    """把 Markdown 日报推送到企业微信群机器人。
+def send_to_wecom(markdown: str, analysis: dict[str, Any] | None = None) -> dict:
+    """把日报推送到企业微信群机器人。
 
+    analysis 有值时发富文本卡片，否则回退纯文本。
     返回 dict：
     - 成功真推：{"ok": True, "channel": "wecom", "response": ...}
     - 未配 webhook：{"ok": True, "mock": True, "channel": "wecom", "message": ...}
     - 失败：{"ok": False, "channel": "wecom", "error": ...}
     """
-    return push_report(markdown, channel="wecom")
+    return push_report(markdown, channel="wecom", analysis=analysis)

@@ -40,7 +40,25 @@ TIME_COLUMNS = {"pay_time", "ship_time", "logistics_update_time", "refund_apply_
 NUMERIC_COLUMNS = {"quantity", "stock", "amount"}
 
 
-def resolve_column_names(columns) -> dict[str, str]:
+def _apply_overrides(
+    resolved: dict[str, str],
+    lookup: dict[str, Any],
+    overrides: dict[str, str] | None,
+) -> dict[str, str]:
+    """把用户的字段映射纠正叠加到别名识别结果上（用户纠正优先级最高）。
+
+    overrides: {原始列名(小写去空白): canonical}，由 memory 层读出后传入；
+    schema 自身保持纯函数、不读文件。命中当前表才生效。
+    """
+    if not overrides:
+        return resolved
+    for raw_lower, canonical in overrides.items():
+        if canonical and raw_lower in lookup:
+            resolved[canonical] = lookup[raw_lower]
+    return resolved
+
+
+def resolve_column_names(columns, overrides: dict[str, str] | None = None) -> dict[str, str]:
     """从列名列表解析 {canonical: 原始列名}（供 LangGraph FieldMappingNode 复用）。"""
     lookup = {str(c).strip().lower(): str(c) for c in columns}
     resolved: dict[str, str] = {}
@@ -49,10 +67,10 @@ def resolve_column_names(columns) -> dict[str, str]:
             if alias.lower() in lookup:
                 resolved[canonical] = lookup[alias.lower()]
                 break
-    return resolved
+    return _apply_overrides(resolved, lookup, overrides)
 
 
-def resolve_columns(df: pd.DataFrame) -> dict[str, str]:
+def resolve_columns(df: pd.DataFrame, overrides: dict[str, str] | None = None) -> dict[str, str]:
     """返回 {canonical: 原始列名}，只包含在 df 中实际找到的字段。"""
     lookup = {str(c).strip().lower(): c for c in df.columns}
     resolved: dict[str, str] = {}
@@ -61,16 +79,18 @@ def resolve_columns(df: pd.DataFrame) -> dict[str, str]:
             if alias.lower() in lookup:
                 resolved[canonical] = lookup[alias.lower()]
                 break
-    return resolved
+    return _apply_overrides(resolved, lookup, overrides)
 
 
-def normalize(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str], list[str]]:
+def normalize(
+    df: pd.DataFrame, overrides: dict[str, str] | None = None
+) -> tuple[pd.DataFrame, dict[str, str], list[str]]:
     """把原始 df 规整为 canonical 列名的新 df。
 
     返回 (规整后的 df, 列映射, 缺失的 canonical 字段列表)。
     时间列转 datetime（解析失败置 NaT），数值列转数字（失败置 NaN）。
     """
-    resolved = resolve_columns(df)
+    resolved = resolve_columns(df, overrides)
     out = pd.DataFrame()
     for canonical, original in resolved.items():
         out[canonical] = df[original]
